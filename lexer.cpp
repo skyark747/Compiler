@@ -182,7 +182,7 @@ bool isIdentifier(string input)
 //check for non-valid identifier
 bool identifierCheck(string input) 
 {   
-    if(isdigit(input[0]) && isalpha(input[1])) {
+    if((isdigit(input[0]) && isalpha(input[1]))) {
         return true;
     }
     return false;
@@ -295,12 +295,14 @@ void Tokenize(string str,vector<string>&Tokens) {
             if(isKeyword(substr)) {
                 Tokens.push_back("T_KEYWORD("+substr+")");
             }
+            else if(isIdentifier(substr)){
+                  
+                Tokens.push_back("T_IDENTIFIER("+substr+")");
+            }
             else if(identifierCheck(substr)) {
                 if(!isIdentifier(substr)){
                     throw string("wrong identifier");
                 }
-
-                Tokens.push_back("T_IDENTIFIER("+substr+")");
             }
             else if(isdataType(substr)) {
                 string type=dataType(substr);
