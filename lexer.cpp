@@ -313,7 +313,12 @@ void Tokenize(string str,vector<string>&Tokens) {
             string substr=str.substr(left,sub_size);
 
             if(isKeyword(substr)) {
-                Tokens.push_back("T_KEYWORD("+substr+")");
+                if(substr=="else\n"){
+                    string elsesub=substr.substr(0,substr.size()-1);
+                    Tokens.push_back("T_KEYWORD("+elsesub+")");
+                }
+                else 
+                    Tokens.push_back("T_KEYWORD("+substr+")");
             }
             else if(isIdentifier(substr)){
                   
