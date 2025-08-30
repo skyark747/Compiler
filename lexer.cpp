@@ -10,7 +10,7 @@ using namespace std;
 bool isKeyword(string input)
 {
     string keywords []={"for","while","if","else","elseif",
-        "switch","case","do","break","continue","class","struct",
+        "switch","case","do","break","else\n","else\t","continue","class","struct",
         "public","private","protected","this","new","delete","try",
         "catch","template","goto","return","auto","sizeof","throw","cout","cin"
     };
@@ -373,6 +373,7 @@ int main()
             // else it is prime
             else
                 cout << n << " is prime";
+            
         }
         return 0;
     })";
