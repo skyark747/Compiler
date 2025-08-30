@@ -26,11 +26,14 @@ bool isKeyword(string input)
 //return the name of Token as per class of operators
 string operatorName(string input) {
     
-    const string ar_op[] = { "+", "-", "*", "/", "%" };
+    const string ar_op[] = {"+", "-", "*", "/", "%" };
     const string as_op[] = {"="};
-    const string rl_op[] = { "==", "!=", ">", "<", ">=", "<=" };
+    const string rl_op[] = {"!", ">", "<","<=",">=","!=" };
     const string lg_op[] = { "&&", "||", "!" };
     const string bt_op[] = { "&", "|", "^", "~", "<<", ">>" };
+
+    if(input=="==")
+        return "T_EQUALSOP";
 
     for (int i=0;i<(sizeof(ar_op)/sizeof(ar_op[0]));i++) {
         if(input==ar_op[i]) {
@@ -188,6 +191,17 @@ bool identifierCheck(string input)
     return false;
 }
 
+bool isInteger(const char* str)
+{
+    if (str == NULL || *str == '\0') {
+        return false;
+    }
+    if(isdigit(str[0])) {
+        return true;
+    }
+    return false;
+}
+
 void Tokenize(string str,vector<string>&Tokens) {
     int left=0;
     int right=0;
@@ -266,10 +280,16 @@ void Tokenize(string str,vector<string>&Tokens) {
             string del;
             del=str[right];
       
-            if(isOperator(del)) {
-                
+            while(isOperator(del)) {
+                right++;
+                if(str[right]!=' ' && !isdigit(str[right]) && !isalpha(str[right]))
+                    del+=str[right];  
+                else
+                    break;
+            }
+            if(isOperator(del)){
                 string op=operatorName(del);
-                Tokens.push_back(op);            
+                Tokens.push_back(op);        
             }
             else if(isbrackettypeL(del)) {
                 string bracket=brackettypeLeft(del.c_str());
@@ -309,7 +329,7 @@ void Tokenize(string str,vector<string>&Tokens) {
                 Tokens.push_back(type);
                 
             }                
-            else{
+            else if(isInteger(substr.c_str())){
                 int pos=substr.find('.');
                 if(pos!=string::npos)
                     Tokens.push_back("T_FLOATNLIT("+substr+")");
@@ -328,28 +348,35 @@ void Tokenize(string str,vector<string>&Tokens) {
 int main()
 {
     vector<string>Tokens;
-    string str = R"(int main() {
+    
+     string str = R"(int main() {
         int n = 29;
         int cnt = 0;
-        // If number is less than/equal to 1, it is not prime
+        
+        // If number is less than/equal to 1,
+        // it is not prime
         if (n <= 1)
             cout << n << " is NOT prime";
-        else { 
+        else {
+
             // Count the divisors of n
             for (int i = 1; i <= n; i++) {
                 if (n % i == 0)
                     cnt++;
             }
-         // If n is divisible by more than 2 numbers then it is not prime
+
+            // If n is divisible by more than 2 
+            // numbers then it is not prime
             if (cnt > 2)
-                cout << n <<  "is NOT prime";
-            else 
+                cout << n << " is NOT prime";
+
+            // else it is prime
+            else
                 cout << n << " is prime";
         }
         return 0;
-        })";
+    })";
 
-        
     try {
         Tokenize(str,Tokens);
     }catch(string &err){
