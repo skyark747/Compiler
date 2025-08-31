@@ -22,27 +22,46 @@ vector<Token> lexer(const string &code) {
         {"WHITESPACE", regex("[ \\t\\n]+")}
     };
 
-    string::const_iterator start = code.begin();
-    string::const_iterator end = code.end();
+    int n = code.size();
+    int i = 0;
 
-    while (start != end) {
+    while (i < n) {
         bool matched = false;
 
-        for (auto &[type, pattern] : tokenSpecs) {
-            smatch match;
-            if (regex_search(start, end, match, pattern, regex_constants::match_continuous)) {
-                if (type != "WHITESPACE") { // Skip whitespace
-                    tokens.push_back({type, match.str()});
+        for (size_t j = 0; j < tokenSpecs.size(); ++j) {
+            
+            string type = tokenSpecs[j].first;
+            regex pattern = tokenSpecs[j].second;
+
+            for (int len = 1; i + len <= n; ++len) {
+            string sub = code.substr(i, len);
+
+            if (regex_match(sub, pattern)) {
+                
+                if (i + len == n || !regex_match(code.substr(i, len + 1), pattern)) {
+                    
+                    if (type != "WHITESPACE") {
+                        Token t;
+                        t.type = type;
+                        t.value = sub;
+                        tokens.push_back(t);
+                    }
+                    i += len;       
+                    matched = true; 
+                    break;          
+                    }
                 }
-                start += match.length(); // move forward
-                matched = true;
-                break;
+            }
+
+            if (matched) {
+                break; 
             }
         }
 
+
         if (!matched) {
-            cerr << "Unexpected character: " << *start << endl;
-            ++start;
+            cerr << "Unexpected character: " << code[i] << endl;
+            i++;
         }
     }
 
@@ -50,14 +69,15 @@ vector<Token> lexer(const string &code) {
 }
 
 int main() {
+
+    // Test
     string code = "int x = 10 + 20;\nif(x > 15) return x;";
+
     vector<Token> tokens = lexer(code);
 
-    for (auto &t : tokens) {
-        cout << "[" << t.type << ": " << t.value << "]\n";
+    for (int i = 0; i < tokens.size(); i++) {
+        cout << "[" << tokens[i].type << ": " << tokens[i].value << "]\n";
     }
 
-    system("pause");
     return 0;
-
 }
