@@ -9,7 +9,7 @@ struct Token {
     string value;
 };
 
-vector<Token> lexer(const string &code) {
+vector<Token> lexer(const string& code) {
     vector<Token> tokens;
 
     // Token patterns
@@ -19,7 +19,9 @@ vector<Token> lexer(const string &code) {
         {"IDENTIFIER", regex("[a-zA-Z_][a-zA-Z0-9_]*")},
         {"OPERATOR", regex("[+\\-*/=<>!]=?|==")},
         {"SYMBOL", regex("[;{},()]")},
-        {"WHITESPACE", regex("[ \\t\\n]+")}
+        {"WHITESPACE", regex("[ \\t\\n]+")},
+        {"STRING", regex("\"(\\\\.|[^\"\\\\])*\"")},
+        {"D_OPERATOR", regex("==|!=|<=|>=|&&|\\|\\||[+\\-*/=<>!]")}
     };
 
     int n = code.size();
@@ -29,32 +31,32 @@ vector<Token> lexer(const string &code) {
         bool matched = false;
 
         for (size_t j = 0; j < tokenSpecs.size(); ++j) {
-            
+
             string type = tokenSpecs[j].first;
             regex pattern = tokenSpecs[j].second;
 
             for (int len = 1; i + len <= n; ++len) {
-            string sub = code.substr(i, len);
+                string sub = code.substr(i, len);
 
-            if (regex_match(sub, pattern)) {
-                
-                if (i + len == n || !regex_match(code.substr(i, len + 1), pattern)) {
-                    
-                    if (type != "WHITESPACE") {
-                        Token t;
-                        t.type = type;
-                        t.value = sub;
-                        tokens.push_back(t);
-                    }
-                    i += len;       
-                    matched = true; 
-                    break;          
+                if (regex_match(sub, pattern)) {
+
+                    if (i + len == n || !regex_match(code.substr(i, len + 1), pattern)) {
+
+                        if (type != "WHITESPACE") {
+                            Token t;
+                            t.type = type;
+                            t.value = sub;
+                            tokens.push_back(t);
+                        }
+                        i += len;
+                        matched = true;
+                        break;
                     }
                 }
             }
 
             if (matched) {
-                break; 
+                break;
             }
         }
 
@@ -71,7 +73,24 @@ vector<Token> lexer(const string &code) {
 int main() {
 
     // Test
-    string code = "int x = 10 + 20;\nif(x > 15) return x;";
+    string code = R"(
+        fn int my_fn(int x, float y) {
+            string my_str = "Hello\nWorld\n!";
+            bool flag = true;
+            int result = x + 42;
+
+            // Check condition
+            if (result >= 50 && y != 0) {
+                result = result / y;
+            } else {
+                result = 0;
+            }
+
+            /* Multi-line
+               Comment */
+            return result;
+        }
+    )";
 
     vector<Token> tokens = lexer(code);
 
