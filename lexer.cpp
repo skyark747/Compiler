@@ -4,6 +4,7 @@
 #include <string.h>
 #include <vector>
 #include <cctype>
+#include <fstream>
 using namespace std;
 
 // code for returning true if the word read is a keyword
@@ -206,6 +207,18 @@ void Tokenize(string str,vector<string>&Tokens) {
     int left=0;
     int right=0;
 
+    const string invalid_op_combos[] = {
+        // Arithmetic chaining
+        "*/", "/*", "/-", "+*", "+/", "-*", "-/", "%/", "%*",
+
+        // Relational mixed
+        "<>", "><", "<!", ">!", "=<", "=>",
+
+        // Assignment misuses
+        "=+", "=-", "=*", "=/", "=%", "=!", "=<", "=>", "=&", "=|", "=^", "=~",
+    };
+
+
     while(right<str.length() && left<=right) {
         
         //tokenizing comments
@@ -261,8 +274,15 @@ void Tokenize(string str,vector<string>&Tokens) {
                 string check_op;
                 int check_p=right+1;
                 check_op=str[check_p];
+
                 if (isOperator(check_op)){
                     del+=check_op;
+                    right++;
+                }
+                for (int i=0;i<(sizeof(invalid_op_combos)/sizeof(invalid_op_combos[0]));i++) {
+                    if(del==invalid_op_combos[i]) {
+                        del.pop_back();
+                    }
                 }
                 string op=operatorName(del);
                 Tokens.push_back(op);        
@@ -325,12 +345,13 @@ void Tokenize(string str,vector<string>&Tokens) {
 
 }
 
-int main()
+int main(int argc, char* argv[])
 {
     vector<string>Tokens;
     
-     string str = R"(def int main(){int a=13-b*252345&xyz/-g;
-        )";
+    //string str = "R(def int main(){if(z+=b && f==c) { print(n);}})";
+
+    string str = argv[1];
 
     try {
         Tokenize(str,Tokens);
@@ -338,9 +359,18 @@ int main()
         cout<<err;
     }
 
+    ofstream wr;
+    wr.open("lexer_output.txt");
+    
     for(int i=0;i<Tokens.size();i++) {
-        cout<<Tokens[i]<<" ";
+        wr<<Tokens[i]<<"\n";
+        
     }
+
+    wr.close();
+
+    cout<<"tokens successfully written in lexer_output.txt";
+
 
     return 0;
 }

@@ -1,24 +1,47 @@
 import Tokenizer
+import json
+import subprocess
 
 
-Tokens=["T_FUNCTION","T_INT","T_IDENTIFIER(main)","T_PARENL","T_PARENR","T_BRACEL","T_INT","T_IDENTIFIER(n)","T_ASSIGNOP",
-        "T_NUMLIT(29)","T_SEMICOLON","T_INT","T_IDENTIFIER(cnt)","T_ASSIGNOP","T_NUMLIT(0)","T_SEMICOLON","T_INT",
-        "T_IDENTIFIER(random_number)","T_SEMICOLON","T_KEYWORD(input)","T_PARENL",
-        "T_IDENTIFIER(random_number)","T_PARENR","T_SEMICOLON",
-        "T_COMMENT(# If number is less than/equal to 1, #)","T_COMMENT(# it is not prime #)","T_KEYWORD(if)","T_PARENL",
-        "T_IDENTIFIER(n)","T_RATIONALOP","T_NUMLIT(1)","T_PARENR","T_BRACEL","T_KEYWORD(print)","T_PARENL",
-        "T_STRINGLIT(\" is NOT prime\")","T_PARENR","T_SEMICOLON","T_BRACER","T_BRACER"]
+#code to run
+string="def int main(){" \
+"print(125648); if(z==b && f==c) {" \
+"    print(n);}}"
 
 
+"""Run cpp file from parser.py"""
 
-        
+cpp_file = "lexer.cpp"
+executable_name = "lexer.exe"
+
+subprocess.run(["g++", cpp_file, "-o", executable_name], check=True)
+subprocess.run([f"./{executable_name}",string], check=True)
+
+
+#read tokens from lexer_output.txt
+def read_tokens_from_file(filename="lexer_output_txt",Tokens=[]):
+    with open(filename,"r") as file:
+        content=file.readlines()
+        for line in content:
+            Tokens.append(line.strip())
+
+    print(f"\nSuccessfully read from {filename}")
+    print(Tokens,'\n')
+
+    return Tokens
+
+Tokens=read_tokens_from_file("lexer_output.txt")
+
 
 def get_tokenzizer(Tokens=Tokens):
     tokenizer=Tokenizer.Tokens(Tokens)
     return tokenizer.get_tokenizer()
-
-#get tokens like (token type , token value)
+   
+#get token to tuple i.e (token type , token value)
 tokens=get_tokenzizer(Tokens)
+print(tokens)
+
+"""From here code starts for parser i.e Recursive decent parser with backtracking"""
 
 global current_pos
 current_pos=0
@@ -43,11 +66,6 @@ def parse_datatype(token=None,tokens=tokens):
     start_pos=current_pos
     if token is None:
         raise SyntaxError("Unexpected EOF")
-    try:
-        node=check_class_type(tokens)
-        return node
-    except SyntaxError:
-        current_pos=start_pos
 
     try:
         node=parse_string(token)
@@ -175,13 +193,15 @@ def parse_digits(token=None):
             raise SyntaxError("expected a bool lit")
         
         return True if token_value == "True" else False
+    
+    raise SyntaxError("expected a num literal")
 
 #parse letters
 def parse_letters(token=None):
     if token is None:
         raise SyntaxError("Unexpected EOF")
     
-    if token>='A' and token<='Z' or token>='a' or token <='z':
+    if token>='A' and token<='Z' or token>='a' and token <='z':
         return True
     else:
         return False
@@ -244,79 +264,268 @@ def parse_keyword(token):
     keywords=["for","while","if","else","else if",
         "switch","case","do","break","continue","class","struct",
         "public","private","protected","this","Array","delete","try",
-        "catch","template","goto","return","len","throw","print","input"]
+        "catch","template","goto","return","len","throw","print","input","True","False"]
     
     if token_value in keywords:
         return token_value
     else:
         raise SyntaxError(f"expected a {token_value}")
     
+def parse_classtype(tokens):
+   
+    node=check_class_type(tokens)
+    return node
+   
 
 #parsing decleration statement (int x=0)
 def parse_decleration(tokens):
     global current_pos
-
+    start_pos=current_pos
     if current_pos>len(tokens)-1 or tokens[current_pos] is None:
         raise SyntaxError("Unexpected EOF")
-    
-    data_type=parse_datatype(tokens[current_pos])
-    
-    current_pos+=1
-    name=parse_identifier(tokens[current_pos])
+    try:
+        data_type=parse_datatype(tokens[current_pos])
+        
+        current_pos+=1
+        name=parse_identifier(tokens[current_pos])
 
-    current_pos+=1
+        current_pos+=1
 
-    value = None
-    if tokens[current_pos][0] == "T_ASSIGNOP":
+        value = None
+        if tokens[current_pos][0] == "T_ASSIGNOP":
+            consume(tokens[current_pos],"T_ASSIGNOP")
+            value = parse_digits(tokens[current_pos])
+            if value is None:
+                raise SyntaxError("Expected an expression after '='")
+
+            current_pos += 1
+
+        consume(tokens[current_pos],"T_SEMICOLON")
+
+
+        return {
+            "datatype": data_type,
+            "identifier": name,
+            "value": value
+        }
+    except SyntaxError:
+        current_pos=start_pos
+
+    try:
+        data_type=parse_datatype(tokens[current_pos])
+        
+        current_pos+=1
+        name=parse_identifier(tokens[current_pos])
+
+        current_pos+=1
+
         consume(tokens[current_pos],"T_ASSIGNOP")
-        value = parse_digits(tokens[current_pos])
-        if value is None:
-            raise SyntaxError("Expected an expression after '='")
-
-        current_pos += 1
-
-    consume(tokens[current_pos],"T_SEMICOLON")
+        expr=parse_expression(tokens)
+        consume(tokens[current_pos],"T_SEMICOLON")
 
 
-    return {
-        "datatype": data_type,
-        "identifier": name,
-        "value": value
-    }
+        return {
+            "datatype": data_type,
+            "identifier": name,
+            "value": expr
+        }
+    except SyntaxError:
+        current_pos=start_pos
+
+    return parse_classtype(tokens)
     
 #check for operators
 def parse_operators(token):
     if token is None:
         raise SyntaxError("Unexpected EOF")
     
-    token_type,_=token
+    token_type,token_value=token
     operators=["T_EQUALSOP","T_ARITHOP","T_ASSIGNOP","T_RATIONALOP","T_LOGICOP", "T_BITWISEOP"]
     if token_type not in operators:
         raise SyntaxError("expected an operator")
+    else: 
+        return token_value
       
 #parsing expression containing operators to identifier
 def parse_operator_expression(tokens):
     global current_pos
-    
+    start_pos=current_pos
     if current_pos>len(tokens)-1 or tokens[current_pos] is None:
         raise SyntaxError("Unexpected EOF")
+        
+    # i=1;
+    try:
+        
+        tok_iden=parse_identifier(tokens[current_pos])
+        current_pos+=1
+        operator=parse_operators(tokens[current_pos])
+        current_pos+=1
+        tok_value=None
+        if tokens[current_pos][0]=="T_NUMLIT" or tokens[current_pos][0]=="T_FLOATLIT":
+            tok_value=parse_digits(tokens[current_pos])
+        elif tokens[current_pos][1] == "True" or tokens[current_pos][1] == "False":
+            tok_value=parse_keyword(tokens[current_pos])
+        elif tokens[current_pos][0] == "T_IDENTIFIER":
+            tok_value=parse_identifier(tokens[current_pos])
+
+        current_pos+=1
+        consume(tokens[current_pos],"T_SEMICOLON")
+
+        
+        return {
+            "type":"OperatorExpression",
+            "identifier":tok_iden,
+            "value":tok_value,
+            "operator":operator
+        }
+    except SyntaxError:
+        current_pos=start_pos
+
+    # 13-b*252345&xyz/-g;
+    try:
+        args=[]
+        tok_iden=parse_digits(tokens[current_pos])
+        args.append(tok_iden)
+        current_pos+=1
+        operator=[]
+        operator.append(parse_operators(tokens[current_pos]))
+        current_pos+=1
+        if tokens[current_pos][0]=="T_NUMLIT" or tokens[current_pos][0]=="T_FLOATLIT":
+            tok_value=parse_digits(tokens[current_pos])
+        elif tokens[current_pos][0] == "T_IDENTIFIER":
+            tok_value=parse_identifier(tokens[current_pos])
+        
+        args.append(tok_value)
+        
+        current_pos+=1
+        operator.append(parse_operators(tokens[current_pos]))
+        current_pos+=1
+        start_pos=current_pos
+        flag=False
+        while not flag:
+            start_pos=current_pos
+            try:
+                node=parse_digits(tokens[current_pos])
+                current_pos+=1
+                start_pos+=1
+                args.append(node)
+                    
+            except SyntaxError:
+                current_pos=start_pos
+
+                
+            try:
+                node=parse_identifier(tokens[current_pos])
+                current_pos+=1
+                start_pos+=1
+                args.append(node)
+                
+            except SyntaxError:
+                current_pos=start_pos
+            
+
+            try:
+                op=parse_operators(tokens[current_pos])
+                current_pos+=1
+                operator.append(op)
+
+            except SyntaxError:
+                flag=True
+
+        return {
+            "type":"OperatorExpression",
+            "body":args,
+            "operators":operator
+        }
+    except SyntaxError:
+        current_pos=start_pos
+
+    # a-b*252345&xyz/-g;
+    try:
+        args=[]
+        tok_iden=parse_identifier(tokens[current_pos])
+        args.append(tok_iden)
+        current_pos+=1
+        operator=[]
+        operator.append(parse_operators(tokens[current_pos]))
+        current_pos+=1
+        if tokens[current_pos][0]=="T_NUMLIT" or tokens[current_pos][0]=="T_FLOATLIT":
+            tok_value=parse_digits(tokens[current_pos])
+        elif tokens[current_pos][0] == "T_IDENTIFIER":
+            tok_value=parse_identifier(tokens[current_pos])
+        
+        args.append(tok_value)
+        
+        current_pos+=1
+        operator.append(parse_operators(tokens[current_pos]))
+        current_pos+=1
+        start_pos=current_pos
+        flag=False
+        while not flag:
+            start_pos=current_pos
+            try:
+                node=parse_digits(tokens[current_pos])
+                current_pos+=1
+                start_pos+=1
+                args.append(node)
+                    
+            except SyntaxError:
+                current_pos=start_pos
+
+                
+            try:
+                node=parse_identifier(tokens[current_pos])
+                current_pos+=1
+                start_pos+=1
+                args.append(node)
+                
+            except SyntaxError:
+                current_pos=start_pos
+            
+
+            try:
+                op=parse_operators(tokens[current_pos])
+                current_pos+=1
+                operator.append(op)
+
+            except SyntaxError:
+                flag=True
+
+        return {
+            "type":"OperatorExpression",
+            "body":args,
+            "operators":operator
+        }
+    except SyntaxError:
+        current_pos=start_pos
+
+    # i+=1)
+    try:
+        
+        tok_iden=parse_identifier(tokens[current_pos])
+        current_pos+=1
+        operator=parse_operators(tokens[current_pos])
+        current_pos+=1
+        if tokens[current_pos][0]=="T_NUMLIT" or tokens[current_pos][0]=="T_FLOATLIT":
+            tok_value=parse_digits(tokens[current_pos])
+        elif tokens[current_pos][1] == "True" or tokens[current_pos][1] == "False":
+            tok_value=parse_keyword(tokens[current_pos])
+        elif tokens[current_pos][0] == "T_IDENTIFIER":
+            tok_value=parse_identifier(tokens[current_pos])
+
+        current_pos+=1
+        
+        return {
+            "type":"OperatorExpression",
+            "identifier":tok_iden,
+            "value":tok_value,
+            "operator":operator
+        }
+    except SyntaxError:
+        current_pos=start_pos
+
+    raise SyntaxError (f"UnExpected Token {tokens[current_pos]}")
     
-    tok_iden=parse_identifier(tokens[current_pos])
-    current_pos+=1
-    parse_operators(tokens[current_pos])
-    current_pos+=1
-    if tokens[current_pos][0]=="T_NUMLIT" or tokens[current_pos][0]=="T_FLOATLIT":
-        tok_value=parse_digits(tokens[current_pos])
-    else:
-        tok_value=parse_identifier(tokens[current_pos])
-
-    current_pos+=1
-
-    return {
-        "type":"OperatorExpression",
-        "identifier":tok_iden,
-        "value":tok_value
-    }
 
 #parsing  expressions like i->s
 def parse_postfix_expression(tokens):
@@ -390,12 +599,13 @@ def parse_postfix_expression(tokens):
     raise SyntaxError(f"UnExpected token {tokens[current_pos]}")
 
 #check print, input statements
-def check_scans(tokens,start_pos):
+def check_scans(tokens):
     global current_pos
-    
+    start_pos=current_pos
     if current_pos>len(tokens)-1 or tokens[current_pos] is None:
         raise SyntaxError("Unexpected EOF")
-   
+    
+
     try:
         node=parse_operator_expression(tokens)
         return node
@@ -409,14 +619,21 @@ def check_scans(tokens,start_pos):
     except SyntaxError:
         current_pos=start_pos
 
+    
+    try:
+        node=parse_string(tokens[current_pos])
+        return node
+    except SyntaxError:
+        current_pos=start_pos
+
     try:
         node=parse_decleration(tokens)
         return node
     except SyntaxError:
         current_pos=start_pos
-    
+
     try:
-        node=parse_string(tokens[current_pos])
+        node=parse_identifier(tokens[current_pos])
         return node
     except SyntaxError:
         current_pos=start_pos
@@ -433,21 +650,20 @@ def parse_scanning_expression(tokens):
     current_pos+=1
     consume(tokens[current_pos],"T_PARENL")
 
-    #for backtracking
-    start_pos=current_pos
-
+   
     #check for all non-terminal , backtrack if error encountered
     args = []
-    node = check_scans(tokens, start_pos)
+    node = check_scans(tokens)
     args.append(node)
+    current_pos+=1
 
     # Handle comma-separated arguments
     while current_pos<len(tokens)-1 and tokens[current_pos][0] == "T_COMMA":
         consume(tokens[current_pos], "T_COMMA")
-        start_pos = current_pos
-        node = check_scans(tokens, start_pos)
+        node = check_scans(tokens)
         args.append(node)
 
+    current_pos+=1
     consume(tokens[current_pos], "T_PARENR")
     consume(tokens[current_pos], "T_SEMICOLON")
 
@@ -500,10 +716,10 @@ def parse_conditional_statement(tokens):
         kw=parse_keyword(tokens[current_pos])
         current_pos+=1
         consume(tokens[current_pos],"T_PARENL")
-        args=parse_expression(tokens)
+        args=parse_statement(tokens)
         consume(tokens[current_pos],"T_PARENR")
         consume(tokens[current_pos],"T_BRACEL")
-        body=parse_statement(tokens)
+        body=parse_statements(tokens)
         consume(tokens[current_pos],"T_BRACER")
 
         return {
@@ -520,7 +736,7 @@ def parse_conditional_statement(tokens):
         kw=parse_keyword(tokens[current_pos])
         current_pos+=1
         consume(tokens[current_pos],"T_BRACEL")
-        body=parse_statement(tokens)
+        body=parse_statements(tokens)
         consume(tokens[current_pos],"T_BRACER")
 
         return {
@@ -547,10 +763,14 @@ def parse_iteration_statement(tokens):
         kw=parse_keyword(tokens[current_pos])
         current_pos+=1
         consume(tokens[current_pos],"T_PARENL")
-        args=parse_expression(tokens)
+        args=[]
+        args.append(parse_expression(tokens))
+        while(tokens[current_pos][0]!="T_PARENR"):
+            args.append(parse_expression(tokens))
+        
         consume(tokens[current_pos],"T_PARENR")
         consume(tokens[current_pos],"T_BRACEL")
-        body=parse_statement(tokens)
+        body=parse_statements(tokens)
         consume(tokens[current_pos],"T_BRACER")
 
         return {
@@ -567,7 +787,7 @@ def parse_iteration_statement(tokens):
         kw1=parse_keyword(tokens[current_pos])
         current_pos+=1
         consume(tokens[current_pos],"T_BRACEL")
-        body1=parse_statement(tokens)
+        body1=parse_statements(tokens)
         consume(tokens[current_pos],"T_BRACER")
 
         kw2=parse_keyword(tokens[current_pos])
@@ -595,12 +815,6 @@ def function_call(tokens):
     start_pos=current_pos
     if current_pos>len(tokens)-1 or tokens[current_pos] is None:
         raise SyntaxError("Unexpected EOF")
-    
-    try:
-        node=parse_scanning_expression(tokens)
-        return node
-    except SyntaxError:
-        current_pos=start_pos
     
     args=[]
     tok_value=parse_identifier(tokens[current_pos])
@@ -749,6 +963,12 @@ def parse_statement(tokens):
         current_pos=start_pos
 
     try:
+        node=parse_scanning_expression(tokens)
+        return node
+    except SyntaxError:
+        current_pos=start_pos
+
+    try:
         node=parse_comment(tokens)
         return node
     except SyntaxError:
@@ -878,7 +1098,7 @@ def parse_pointer(tokens):
     
     dtype = parse_datatype(tokens[current_pos])
     current_pos += 1
-    parse_operators(tokens[current_pos])
+    operator=parse_operators(tokens[current_pos])
     current_pos+=1
 
     ident = parse_identifier(tokens[current_pos])
@@ -890,7 +1110,8 @@ def parse_pointer(tokens):
         return {
             "type": "PointerDecl",
             "datatype": dtype,
-            "identifier": ident
+            "identifier": ident,
+            "operator":operator
         }
 
     elif tokens[current_pos][0] == "T_ASSIGNOP":
@@ -966,12 +1187,17 @@ def parse_comment(tokens):
 
 #parsing the whole program
 def parse_program(tokens):
+    global current_pos
     program=[]
     while current_pos<len(tokens)-1:
         body=parse_function(tokens)
         program.append(body)
 
-    print(program)
+    print_ast(program)
+
+def print_ast(node):
+    formatted = json.dumps(node, indent=3)
+    print(formatted)
 
 
 parse_program(tokens)
