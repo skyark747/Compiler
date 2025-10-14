@@ -10,9 +10,9 @@ using namespace std;
 bool isKeyword(string input)
 {
     string keywords []={"for","while","if","else","elseif",
-        "switch","case","do","break","else\n","else\t","continue","class","struct",
-        "public","private","protected","this","new","delete","try",
-        "catch","template","goto","return","auto","sizeof","throw","cout","cin"
+        "switch","case","do","break","continue","class","struct",
+        "public","private","protected","this","Array","delete","try",
+        "catch","template","goto","return","len","throw","print","input","True","False"
     };
 
     for(int i=0;i<(sizeof(keywords)/sizeof(keywords[0]));i++) {
@@ -26,42 +26,42 @@ bool isKeyword(string input)
 //return the name of Token as per class of operators
 string operatorName(string input) {
     
-    const string ar_op[] = {"+", "-", "*", "/", "%" };
+    const string ar_op[] = {"+", "-", "*", "/", "%","+=","-=","*=","/=" };
     const string as_op[] = {"="};
     const string rl_op[] = {"!", ">", "<","<=",">=","!=" };
-    const string lg_op[] = { "&&", "||", "!" };
-    const string bt_op[] = { "&", "|", "^", "~", "<<", ">>" };
+    const string lg_op[] = { "&&", "||" };
+    const string bt_op[] = { "&", "|", "^", "~", "<<", ">>","&=","|=","^=","~=","<<=",">>=" };
 
     if(input=="==")
-        return "T_EQUALSOP";
+        return "T_EQUALSOP("+input+")";
 
     for (int i=0;i<(sizeof(ar_op)/sizeof(ar_op[0]));i++) {
         if(input==ar_op[i]) {
-            return "T_ARITHOP";
+            return "T_ARITHOP("+input+")";
         }
     }
 
     for (int i=0;i<(sizeof(as_op)/sizeof(as_op[0]));i++) {
         if(input==as_op[i]) {
-            return "T_ASSIGNOP";
+            return "T_ASSIGNOP("+input+")";
         }
     }
 
     for (int i=0;i<(sizeof(rl_op)/sizeof(rl_op[0]));i++) {
         if(input==rl_op[i]) {
-            return "T_RATIONALOP";
+            return "T_RATIONALOP("+input+")";
         }
     }
 
     for (int i=0;i<(sizeof(lg_op)/sizeof(lg_op[0]));i++) {
         if(input==lg_op[i]) {
-            return "T_LOGICOP";
+            return "T_LOGICOP("+input+")";
         }
     }
 
     for (int i=0;i<(sizeof(bt_op)/sizeof(bt_op[0]));i++) {
         if(input==bt_op[i]) {
-            return "T_BITWISEOP";
+            return "T_BITWISEOP("+input+")";
         }
     }
     return "NONE";
@@ -162,7 +162,7 @@ bool isstringLit(char input) {
 //finding delimeters for breaking the code stream into pieces
 bool isDelimiter(char input) {
 
-    const char del[]={' ',',',';','+','-','*','/','%','=','!','&','|','<','>','^','~','(','[','{',')',']','}'};
+    const char del[]={' ',',',';','+','-','*','/','%','=','!','&','|','<','>','^','~','(','[','{',')',']','}','\n','\t','\r'};
 
     for(int i=0;i<sizeof(del)/sizeof(del[0]);i++) {
         if(input==del[i]) {
@@ -209,33 +209,21 @@ void Tokenize(string str,vector<string>&Tokens) {
     while(right<str.length() && left<=right) {
         
         //tokenizing comments
-        if (right + 1 < str.size() && str[right] == '/')
+        if (right < str.size() && str[right] == '#')
         {
-                if (str[right + 1] == '/')
-                {
-                    int start = right;
-                    right += 2;
-                    while (right + 1 < str.size() && str[right] != '\n') 
-                        right++;
-                    Tokens.push_back("T_COMMENT(" + str.substr(start, right - start) + ")");
+            int start = right;
+            right++;  // move past first '#'
 
-                    left = right;            
-                    continue;                
-                }
+            // find closing '#'
+            while (right < str.size() && str[right] != '#')
+                right++;
 
-                if (str[right + 1] == '*')
-                {
-                    int start = right;
-                    right += 2;
-                    while (right + 1 < str.size() && !(str[right] == '*' && str[right + 1] == '/')) 
-                        right++;
+            if (right < str.size())  // found closing '#'
+                right++;  // include the closing '#'
 
-                    right += 2;
-                    Tokens.push_back("T_COMMENT(" + str.substr(start, right - start) + ")");
-
-                    left = right;
-                    continue;
-                }
+            Tokens.push_back("T_COMMENT(" + str.substr(start, right - start) + ")");
+            left = right;
+            continue;
         }
 
         //tokenzing string literals
@@ -261,17 +249,6 @@ void Tokenize(string str,vector<string>&Tokens) {
             left = right;
             continue;
         }
-        //tokenzing escaped characters
-        else if(isstringLit(str[right])) {
-                if(str[right]=='\n') {
-                    Tokens.push_back("T_STRINGLIT('/n')");
-                }
-                else if(str[right]=='\t') {
-                    Tokens.push_back("T_STRINGLIT('/t')");
-                } 
-            right++;
-            left=right;     
-        }    
         while(right<str.length() && !isDelimiter(str[right])) {
             right++;
         }
@@ -280,14 +257,13 @@ void Tokenize(string str,vector<string>&Tokens) {
             string del;
             del=str[right];
       
-            while(isOperator(del)) {
-                right++;
-                if(str[right]!=' ' && !isdigit(str[right]) && !isalpha(str[right]))
-                    del+=str[right];  
-                else
-                    break;
-            }
             if(isOperator(del)){
+                string check_op;
+                int check_p=right+1;
+                check_op=str[check_p];
+                if (isOperator(check_op)){
+                    del+=check_op;
+                }
                 string op=operatorName(del);
                 Tokens.push_back(op);        
             }
@@ -306,19 +282,18 @@ void Tokenize(string str,vector<string>&Tokens) {
             }
            
             right++;
-            left=right;
         }   
-        if(right<str.length() && isDelimiter(str[right]) && left!=right) {
+        else if(right<str.length() && isDelimiter(str[right]) && left!=right) {
             int sub_size=right-left;
             string substr=str.substr(left,sub_size);
 
             if(isKeyword(substr)) {
-                if(substr=="else\n"){
-                    string elsesub=substr.substr(0,substr.size()-1);
-                    Tokens.push_back("T_KEYWORD("+elsesub+")");
-                }
-                else 
-                    Tokens.push_back("T_KEYWORD("+substr+")");
+                
+                Tokens.push_back("T_KEYWORD("+substr+")");
+            }
+            else if(substr=="def") {
+                
+                Tokens.push_back("T_FUNCTION");
             }
             else if(isIdentifier(substr)){
                   
@@ -342,9 +317,9 @@ void Tokenize(string str,vector<string>&Tokens) {
                     Tokens.push_back("T_NUMLIT("+substr+")");
             }
             
-            left=right;
-            
         }
+        
+        left=right;
 
     }
 
@@ -354,34 +329,8 @@ int main()
 {
     vector<string>Tokens;
     
-     string str = R"(int main() {
-        int n = 29;
-        int cnt = 0;
-        
-        // If number is less than/equal to 1,
-        // it is not prime
-        if (n <= 1)
-            cout << n << " is NOT prime";
-        else {
-
-            // Count the divisors of n
-            for (int i = 1; i <= n; i++) {
-                if (n % i == 0)
-                    cnt++;
-            }
-
-            // If n is divisible by more than 2 
-            // numbers then it is not prime
-            if (cnt > 2)
-                cout << n << " is NOT prime";
-
-            // else it is prime
-            else
-                cout << n << " is prime";
-            
-        }
-        return 0;
-    })";
+     string str = R"(def int main(){int a=13-b*252345&xyz/-g;
+        )";
 
     try {
         Tokenize(str,Tokens);
