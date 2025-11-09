@@ -31,14 +31,14 @@ class ScopeAnalyzer:
     """
 
     def __init__(self, builtins: Optional[List[str]] = None):
+        
         # spaghetti stack: each entry is a dict name -> Symbol
         self.scopes: List[Dict[str, Symbol]] = []
-        # global function registry (kept in global scope too)
+
         self.errors: List[Tuple[ScopeError, str, Optional[Any]]] = []
-        # names considered builtin functions (print, input etc)
+
         self.builtins = set(builtins or ["print", "input"])
 
-    # Scope stack helpers
     def push_scope(self):
         self.scopes.append({})
     def pop_scope(self):
@@ -61,7 +61,6 @@ class ScopeAnalyzer:
         """
         cs = self.current_scope()
         if name in cs:
-            # If redeclaring a function at global scope, produce FunctionPrototypeRedefinition
             if kind == "func":
                 self.errors.append((ScopeError.FunctionPrototypeRedefinition,
                                     f"Function '{name}' redefined in the same (global) scope",
@@ -74,31 +73,26 @@ class ScopeAnalyzer:
         cs[name] = Symbol(name=name, kind=kind, datatype=datatype, info={"node": node})
         return True
 
-    # Public API
     def analyze_program(self, program_ast: List[dict]):
         """
         program_ast is expected to be the list returned by your parser's parse_program,
         i.e. a list of function dicts at top-level.
         """
-        # start with a global scope
+
         self.push_scope()
 
-        # First pass: register function names in global scope
         for node in program_ast:
             if isinstance(node, dict) and node.get("Function") == "def":
                 fname = node.get("identifier")
-                # declare function in global scope
                 self.declare_symbol(fname, kind="func", datatype=node.get("return type"), node=node)
             else:
-                # If parser allowed top-level variable declarations, handle here (not in your current parser)
                 pass
 
-        # Second pass: walk bodies (so function names exist for calls)
         for node in program_ast:
             self._walk_top_level_node(node)
 
-        # keep global scope as return info, errors recorded
         global_symbols = self.scopes[0].copy() if self.scopes else {}
+
         # cleanup stack
         self.pop_scope()
         return global_symbols, self.errors
@@ -110,14 +104,13 @@ class ScopeAnalyzer:
         if node.get("Function") == "def":
             self._walk_function(node)
         else:
-            # Unknown top-level nodes are ignored for now
             return
 
     def _walk_function(self, func_node: Dict[str, Any]):
-        # new scope for function body (parameters are local to the function)
         self.push_scope()
         fname = func_node.get("identifier")
         params = func_node.get("params", [])
+
         # params are tuples like ("Param", type, name)
         for p in params:
             if isinstance(p, (list, tuple)) and p[0] == "Param":
@@ -126,7 +119,6 @@ class ScopeAnalyzer:
                     continue
                 self.declare_symbol(pname, kind="param", datatype=ptype, node=func_node)
 
-        # Now walk the function body
         body = func_node.get("body")
         self._walk_node(body)
         self.pop_scope()
@@ -143,13 +135,11 @@ class ScopeAnalyzer:
         if not isinstance(node, dict):
             return
 
-        # handle statements-block
         ntype = node.get("type")
         if ntype == "Statements":
             self._walk_statements(node)
             return
 
-        # declaration node (returned by parse_decleration)
         if "datatype" in node and "identifier" in node:
             self._walk_declaration(node)
             return
@@ -174,22 +164,17 @@ class ScopeAnalyzer:
             args = node.get("args")
             if isinstance(args, dict) and args.get("type") == "fn call":
                 self._walk_function_call(args)
-            # else return/break: nothing to do for scope analysis
             return
 
-        # function call (sometimes returned directly by function_call)
         if node.get("type") == "fn call":
             self._walk_function_call(node)
             return
 
         # conditional or iteration nodes have 'body' or 'body'/'args'
         if node.get("type") in ("conditional statement", "iteration"):
-            # Enter a new block scope for the body (C rules: blocks within if/while have inner scope)
-            # NB: Your parser returns 'body' as a single statement or block; we'll push/pop appropriately.
-            # For the condition/args, we still analyze expressions for identifiers.
-            args = node.get("args")
             if args:
                 self._walk_node(args)
+
             # body may be a single statement or a block
             body = node.get("body")
             if body is not None:
@@ -199,15 +184,12 @@ class ScopeAnalyzer:
                 self.pop_scope()
             return
 
-        # class/struct-like nodes or other nodes: try to walk contained keys
-        # fallback: walk children
+        # class/struct-like nodes or other nodes
         for k, v in node.items():
             if isinstance(v, (dict, list)):
                 self._walk_node(v)
 
-    # Specific walkers
     def _walk_statements(self, node: Dict[str, Any]):
-        # Each Statements node is a block: new scope for block
         self.push_scope()
         stmts = node.get("block", [])
         for s in stmts:
@@ -217,7 +199,6 @@ class ScopeAnalyzer:
     def _walk_declaration(self, node: Dict[str, Any]):
         name = node.get("identifier")
         dtype = node.get("datatype")
-        # declare in current (innermost) scope
         self.declare_symbol(name, kind="var", datatype=dtype, node=node)
         # If initializer references an identifier, check it
         val = node.get("value")
@@ -269,12 +250,10 @@ class ScopeAnalyzer:
                     if arg and arg[0] == "identifier":
                         self._check_variable_usage(arg[1], node)
         else:
-            # other keywords: walk args
             for arg in node.get("args", []):
                 self._walk_node(arg)
 
     def _walk_function_call(self, node: Dict[str, Any]):
-        # Your parser returns args like [("identifier", fname), ...] or scanning nodes
         args = node.get("args", [])
         if not args:
             return
@@ -284,7 +263,6 @@ class ScopeAnalyzer:
         if isinstance(first, tuple) and len(first) >= 2 and first[0] == "identifier":
             fname = first[1]
         elif isinstance(first, dict) and first.get("type") == "PostfixExpression":
-            # function call on a member: left.operator -> probably skip check for global function
             pass
         elif isinstance(first, str):
             fname = first
@@ -304,7 +282,8 @@ class ScopeAnalyzer:
             elif isinstance(a, dict):
                 self._walk_node(a)
 
-    # Utilities
+    ###### Utilities ######
+
     def _check_variable_usage(self, name: str, node: Any):
         # If not declared in any accessible scope, error
         sym = self.find_symbol(name)
@@ -316,7 +295,7 @@ class ScopeAnalyzer:
                                 node))
 
     def _looks_like_literal(self, token_str: str) -> bool:
-        # crude heuristic: numeric literals are digits, string literals begin with quotes
+        # numeric literals are digits, string literals begin with quotes
         if not isinstance(token_str, str):
             return False
         token_str = token_str.strip()
