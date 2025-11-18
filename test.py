@@ -2,7 +2,23 @@ from scope_analysis import ScopeAnalyzer
 from Type_Checker import TypeChecker
 import parser
 
-ast = parser.parse_program(parser.tokens)  # or however you get AST
+#ast = parser.parse_program(parser.tokens)  # or however you get AST
+
+ast = [
+    {
+        "Function": "def",
+        "identifier": "main",
+        "params": [],
+        "body": {
+            "type": "Statements",
+            "block": [
+                {"datatype": "int", "identifier": "x", "value": "5"},
+                {"type": "OperatorExpression", "identifier": "y", "value": "10"},  # y undeclared
+                {"type": "jump statement", "keyword": "return", "args": None}
+            ]
+        }
+    }
+]
 
 sa = ScopeAnalyzer()
 globals_tbl, sa_errors, sa_warnings = sa.analyze_program(ast)
@@ -16,21 +32,7 @@ print("\nType errors:")
 for e in type_errors:
     print(f"- {e.kind.name}: {e.message}")
 
-# ast = [
-#     {
-#         "Function": "def",
-#         "identifier": "main",
-#         "params": [],
-#         "body": {
-#             "type": "Statements",
-#             "block": [
-#                 {"datatype": "int", "identifier": "x", "value": "5"},
-#                 {"type": "OperatorExpression", "identifier": "y", "value": "10"},  # y undeclared
-#                 {"type": "jump statement", "keyword": "return", "args": None}
-#             ]
-#         }
-#     }
-# ]
+
 
 # sa = ScopeAnalyzer()
 # globals_, errors = sa.analyze_program(ast)
