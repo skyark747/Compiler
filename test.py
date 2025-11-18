@@ -1,24 +1,8 @@
+import json
 from scope_analysis import ScopeAnalyzer
-from Type_Checker import TypeChecker
-import parser
 
-ast = parser.parse_program(parser.tokens)  # or however you get AST
-
-# ast = [
-#     {~
-#         "Function": "def",
-#         "identifier": "main",
-#         "params": [],
-#         "body": {
-#             "type": "Statements",
-#             "block": [
-#                 {"datatype": "int", "identifier": "x", "value": "5"},
-#                 {"type": "OperatorExpression", "identifier": "y", "value": "10"},  # y undeclared
-#                 {"type": "jump statement", "keyword": "return", "args": None}
-#             ]
-#         }
-#     }
-# ]
+with open("ast.txt", "r") as infile:
+    ast = json.load(infile)
 
 sa = ScopeAnalyzer()
 globals_, errors, warnings = sa.analyze_program(ast)
@@ -35,6 +19,7 @@ for err in errors:
 print("\nWarnings:")
 for warn in warnings:
    print(f"  {warn[0].name} → {warn[1]}")
+
 
 
    # sa = ScopeAnalyzer()

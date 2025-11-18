@@ -25,9 +25,7 @@ class ScopeWarning(Enum):
     UnusedVariableWarning = auto()
 
 
-# ────────────────────────────
-# Symbol and Scope Structures
-# ────────────────────────────
+##### Symbol and Scope Structures #####
 
 @dataclass
 class Symbol:
@@ -48,10 +46,6 @@ class ScopeAnalyzer:
         self.labels_defined: set[str] = set()
         self.labels_used: set[str] = set()
         self.builtins = set(builtins or ["print", "input"])
-
-    # ────────────────────────────
-    # Scope Management (Spaghetti Stack)
-    # ────────────────────────────
 
     def push_scope(self):
         self.scopes.append({})
@@ -100,9 +94,7 @@ class ScopeAnalyzer:
         cs[name] = Symbol(name=name, kind=kind, datatype=datatype, info={"node": node})
         return True
 
-    # ────────────────────────────
-    # Main Analysis Entry
-    # ────────────────────────────
+##### Main Analysis Entry #####
 
     def analyze_program(self, program_ast: List[dict]):
         self.push_scope()  # global scope
@@ -214,15 +206,12 @@ class ScopeAnalyzer:
             if isinstance(v, (dict, list)):
                 self._walk_node(v)
 
-    # ────────────────────────────
-    # Detailed Walkers
-    # ────────────────────────────
+##### Walkers #####
 
     def _walk_function(self, func_node: dict):
         fname = func_node.get("identifier")
         params = func_node.get("params", [])
 
-        # Enter function
         self.in_function = True
         self.push_scope()
 
@@ -288,9 +277,7 @@ class ScopeAnalyzer:
             elif isinstance(v, (dict, list)):
                 self._walk_node(v)
 
-    # ────────────────────────────
-    # Utilities
-    # ────────────────────────────
+##### Utilities #####
 
     def _check_variable_usage(self, name: str, node: Any):
         sym = self.find_symbol(name)
