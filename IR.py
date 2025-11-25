@@ -128,9 +128,9 @@ class TACGenerator:
     # For Loop TAC
     # ----------------------------
     def emit_for(self, node):
-        init = node["args"][0]      # declaration or assignment
-        cond = node["args"][1]      # OperatorExpression
-        update = node["args"][2]    # OperatorExpression
+        init = node["args"][0]      
+        cond = node["args"][1]      
+        update = node["args"][2]    
 
         start_label = self.new_label("L")
         end_label = self.new_label("L")
