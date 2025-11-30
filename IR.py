@@ -61,9 +61,7 @@ class TACGenerator:
             # If needed add more types here
             pass
 
-    # ----------------------------
     # Operator Expression (e.g., i += 1, i < 10)
-    # ----------------------------
     def emit_operator(self, node):
         ident = node["identifier"]
         op = node["operator"]
