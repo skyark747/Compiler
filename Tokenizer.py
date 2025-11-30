@@ -1,6 +1,5 @@
-
 class Tokens:
-    def __init__(self,tokens):
+    def _init_(self,tokens):
         self.tokens=tokens
         self.tokenizer=[]
     def break_function(self):
@@ -16,4 +15,3 @@ class Tokens:
     def get_tokenizer(self):
         self.break_function()
         return self.tokenizer
-    

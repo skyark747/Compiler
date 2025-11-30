@@ -1,7 +1,7 @@
 import json
 from scope_analysis import ScopeAnalyzer
 
-with open("ast.txt", "r") as infile:
+with open(".txt", "r") as infile:
     ast = json.load(infile)
 
 sa = ScopeAnalyzer()
@@ -19,17 +19,3 @@ for err in errors:
 print("\nWarnings:")
 for warn in warnings:
    print(f"  {warn[0].name} → {warn[1]}")
-
-
-
-   # sa = ScopeAnalyzer()
-# globals_tbl, sa_errors, sa_warnings = sa.analyze_program(ast)
-
-# tc = TypeChecker(ast, scope_analyzer=sa)
-# type_errors = tc.type_check()
-
-# print("Scope errors:", sa_errors)
-# print("Scope warnings:", sa_warnings)
-# print("\nType errors:")
-# for e in type_errors:
-#     print(f"- {e.kind.name}: {e.message}")

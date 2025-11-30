@@ -1,0 +1,6 @@
+def int main(){
+    print(125648);
+    if(z==b && f==c) {
+        print(n);
+    }
+}
