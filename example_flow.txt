@@ -1,0 +1,318 @@
+
+═══════════════════════════════════════════════════════════════════════
+        TYPE CHECKER FLOW - SIMPLE EXAMPLE WITH ACTUAL INPUT
+═══════════════════════════════════════════════════════════════════════
+
+📝 INPUT CODE:
+──────────────
+def int add(int x, int y) {
+    int result = x + y;
+    return result;
+}
+
+def int main() {
+    int a = 10;
+    int b = 5;
+    int sum = add(a, b);
+    print(sum);
+}
+
+═══════════════════════════════════════════════════════════════════════
+🔍 STEP-BY-STEP EXECUTION:
+═══════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ STEP 1: START - Read AST from ast.txt                              │
+└─────────────────────────────────────────────────────────────────────┘
+
+AST = [
+  {Function: "add", return_type: "int", params: [(x, int), (y, int)]},
+  {Function: "main", return_type: "int", params: []}
+]
+
+Initialize:
+  ✓ symbol_table = {}        (empty - will store variables)
+  ✓ function_table = {}      (empty - will store functions)
+  ✓ scope_level = 0          (global scope)
+
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ STEP 2: CHECK FUNCTION "add"                                       │
+└─────────────────────────────────────────────────────────────────────┘
+
+2.1 Extract Information:
+    ✓ func_name = "add"
+    ✓ return_type = "int"
+    ✓ params = [("x", "int"), ("y", "int")]
+
+2.2 Register Function:
+    function_table["add"] = {
+        return_type: "int",
+        params: [("x", "int"), ("y", "int")]
+    }
+    
+    📋 Function Table Now:
+    ┌──────┬─────────────┬──────────────────────────┐
+    │ Name │ Return Type │ Parameters               │
+    ├──────┼─────────────┼──────────────────────────┤
+    │ add  │ int         │ x:int, y:int             │
+    └──────┴─────────────┴──────────────────────────┘
+
+2.3 Enter Function Scope:
+    scope_level: 0 → 1
+
+2.4 Register Parameters as Variables:
+    symbol_table["x"] = {type: "int", scope: 1}
+    symbol_table["y"] = {type: "int", scope: 1}
+    
+    📋 Symbol Table Now:
+    ┌──────┬──────┬───────┐
+    │ Name │ Type │ Scope │
+    ├──────┼──────┼───────┤
+    │ x    │ int  │ 1     │
+    │ y    │ int  │ 1     │
+    └──────┴──────┴───────┘
+
+2.5 Check Body - Statement: "int result = x + y;"
+
+    A. This is a DECLARATION:
+       • Variable name: "result"
+       • Variable type: "int"
+       • Initial value: x + y (OperatorExpression)
+    
+    B. Register Variable:
+       symbol_table["result"] = {type: "int", scope: 1}
+       
+       📋 Symbol Table Now:
+       ┌────────┬──────┬───────┐
+       │ Name   │ Type │ Scope │
+       ├────────┼──────┼───────┤
+       │ x      │ int  │ 1     │
+       │ y      │ int  │ 1     │
+       │ result │ int  │ 1     │
+       └────────┴──────┴───────┘
+    
+    C. Check Initial Value: x + y
+       1. Get type of "x": Look up symbol_table["x"] → "int" ✓
+       2. Get type of "y": Look up symbol_table["y"] → "int" ✓
+       3. Check operator "+": Valid for int? YES ✓
+       4. Result type: "int"
+       5. Can assign "int" to variable "result" (type "int")? YES ✓
+       
+       ✅ Statement Valid!
+
+2.6 Check Body - Statement: "return result;"
+
+    A. This is a RETURN statement:
+       • Function expects return type: "int"
+       • Returning: "result"
+    
+    B. Check Return Value:
+       1. Get type of "result": Look up symbol_table["result"] → "int" ✓
+       2. Does "int" match expected "int"? YES ✓
+       
+       ✅ Return Valid!
+
+2.7 Exit Function Scope:
+    • Remove variables with scope = 1: x, y, result
+    • scope_level: 1 → 0
+    
+    📋 Symbol Table After Cleanup:
+    ┌──────┬──────┬───────┐
+    │ Name │ Type │ Scope │
+    ├──────┼──────┼───────┤
+    │      │      │       │ (empty)
+    └──────┴──────┴───────┘
+
+✅ FUNCTION "add" CHECKED - NO ERRORS
+
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ STEP 3: CHECK FUNCTION "main"                                      │
+└─────────────────────────────────────────────────────────────────────┘
+
+3.1 Extract Information:
+    ✓ func_name = "main"
+    ✓ return_type = "int"
+    ✓ params = [] (no parameters)
+
+3.2 Register Function:
+    function_table["main"] = {
+        return_type: "int",
+        params: []
+    }
+    
+    📋 Function Table Now:
+    ┌──────┬─────────────┬──────────────────────────┐
+    │ Name │ Return Type │ Parameters               │
+    ├──────┼─────────────┼──────────────────────────┤
+    │ add  │ int         │ x:int, y:int             │
+    │ main │ int         │ (none)                   │
+    └──────┴─────────────┴──────────────────────────┘
+
+3.3 Enter Function Scope:
+    scope_level: 0 → 1
+
+3.4 No Parameters to Register
+
+3.5 Check Body - Statement: "int a = 10;"
+
+    A. This is a DECLARATION:
+       • Variable: "a", Type: "int", Value: 10
+    
+    B. Register Variable:
+       symbol_table["a"] = {type: "int", scope: 1}
+    
+    C. Check Value:
+       1. Value is literal: 10
+       2. Infer type: 10 is Python int → "int" ✓
+       3. Can assign "int" to "int"? YES ✓
+       
+       ✅ Statement Valid!
+       
+    📋 Symbol Table:
+    ┌──────┬──────┬───────┐
+    │ Name │ Type │ Scope │
+    ├──────┼──────┼───────┤
+    │ a    │ int  │ 1     │
+    └──────┴──────┴───────┘
+
+3.6 Check Body - Statement: "int b = 5;"
+
+    Similar to above...
+    
+    📋 Symbol Table:
+    ┌──────┬──────┬───────┐
+    │ Name │ Type │ Scope │
+    ├──────┼──────┼───────┤
+    │ a    │ int  │ 1     │
+    │ b    │ int  │ 1     │
+    └──────┴──────┴───────┘
+
+3.7 Check Body - Statement: "int sum = add(a, b);"
+
+    A. This is a DECLARATION with FUNCTION CALL:
+       • Variable: "sum", Type: "int"
+       • Value: add(a, b)
+    
+    B. Register Variable:
+       symbol_table["sum"] = {type: "int", scope: 1}
+    
+    C. Check Function Call: add(a, b)
+       
+       Step 1: Find function "add" in function_table
+       ✓ Found: {return_type: "int", params: [(x,int), (y,int)]}
+       
+       Step 2: Check argument count
+       • Expected: 2 parameters
+       • Actual: 2 arguments (a, b)
+       ✓ Match!
+       
+       Step 3: Check argument types
+       
+       Argument 1: "a"
+       ├─ Get type: symbol_table["a"] → "int"
+       └─ Expected: "int" ✓ Match!
+       
+       Argument 2: "b"
+       ├─ Get type: symbol_table["b"] → "int"
+       └─ Expected: "int" ✓ Match!
+       
+       Step 4: Get return type
+       • Function "add" returns: "int"
+       
+       Step 5: Check assignment
+       • Returned type: "int"
+       • Variable "sum" type: "int"
+       ✓ Compatible!
+       
+       ✅ Function Call Valid!
+    
+    📋 Symbol Table:
+    ┌──────┬──────┬───────┐
+    │ Name │ Type │ Scope │
+    ├──────┼──────┼───────┤
+    │ a    │ int  │ 1     │
+    │ b    │ int  │ 1     │
+    │ sum  │ int  │ 1     │
+    └──────┴──────┴───────┘
+
+3.8 Check Body - Statement: "print(sum);"
+
+    A. This is a FUNCTION CALL:
+       • Function: "print"
+       • Arguments: ["sum"]
+    
+    B. Check if built-in:
+       ✓ "print" is a built-in function
+       ✓ Built-ins always return "void"
+       
+       ✅ Statement Valid!
+
+3.9 Exit Function Scope:
+    • Remove variables with scope = 1: a, b, sum
+    • scope_level: 1 → 0
+    
+    📋 Symbol Table After Cleanup:
+    ┌──────┬──────┬───────┐
+    │ Name │ Type │ Scope │
+    ├──────┼──────┼───────┤
+    │      │      │       │ (empty)
+    └──────┴──────┴───────┘
+
+✅ FUNCTION "main" CHECKED - NO ERRORS
+
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ STEP 4: FINAL RESULTS                                              │
+└─────────────────────────────────────────────────────────────────────┘
+
+📊 Summary:
+───────────
+✅ Errors: 0
+⚠️  Warnings: 0
+📝 Functions checked: 2 (add, main)
+🎯 Status: PASSING
+
+📋 Final Function Table:
+┌──────┬─────────────┬──────────────────────────┐
+│ Name │ Return Type │ Parameters               │
+├──────┼─────────────┼──────────────────────────┤
+│ add  │ int         │ x:int, y:int             │
+│ main │ int         │ (none)                   │
+└──────┴─────────────┴──────────────────────────┘
+
+📋 Final Symbol Table:
+(Empty - all local variables cleaned up after functions)
+
+💾 Output saved to: type_check_results.json
+
+
+═══════════════════════════════════════════════════════════════════════
+🎓 KEY CONCEPTS EXPLAINED:
+═══════════════════════════════════════════════════════════════════════
+
+1. SYMBOL TABLE = Phone Book for Variables
+   • Stores: variable name → {type, scope}
+   • When you use "a", checker looks it up to find type
+
+2. FUNCTION TABLE = Phone Book for Functions
+   • Stores: function name → {return_type, parameters}
+   • When you call add(a,b), checker looks it up to verify
+
+3. SCOPE = Room Number
+   • Global scope = 0 (everyone can see)
+   • Function scope = 1, 2, 3... (private to that function)
+   • When function ends, its variables are deleted
+
+4. TYPE CHECKING = Matching Game
+   • int + int = int ✓
+   • int → float = OK (with warning)
+   • float → int = ERROR ✗
+
+5. FLOW = Assembly Line
+   • Step 1: Register all functions (so they can call each other)
+   • Step 2: Check each function's body (one at a time)
+   • Step 3: Clean up after each function
+   • Step 4: Report results
+

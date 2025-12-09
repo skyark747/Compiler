@@ -1,10 +1,27 @@
 import Tokenizer
 import json
 import subprocess
+import os
 
 
-#code to run
-string="def int main(){int* arr_ptr = Array(5);}"
+#Read code from code.txt file
+def read_code_from_file(filename="code.txt"):
+    """Read source code from code.txt file"""
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f"Error: {filename} not found! Please create the file with your source code.")
+    
+    with open(filename, "r") as file:
+        code = file.read().strip()
+    
+    if not code:
+        raise ValueError(f"Error: {filename} is empty! Please add your source code.")
+    
+    print(f"Successfully read code from {filename}")
+    print(f"Source Code:\n{code}\n")
+    return code
+
+# Read source code from code.txt
+string = read_code_from_file("code.txt")
 
 
 """Run cpp file from parser.py"""
@@ -250,8 +267,12 @@ def parse_function(tokens):
     consume(tokens[current_pos],"T_BRACEL")
 
     body=parse_statements(tokens)
+    
+    print(f"DEBUG parse_function: After parse_statements, current_pos={current_pos}, token={tokens[current_pos] if current_pos < len(tokens) else 'EOF'}")
 
     consume(tokens[current_pos],"T_BRACER")
+    
+    print(f"DEBUG parse_function: Function '{function_name}' parsed successfully, current_pos={current_pos}")
 
     return {"Function":"def","return type":return_type,"identifier":function_name,"params":params,"body":body}
 
@@ -265,7 +286,7 @@ def parse_keyword(token):
     keywords=["for","while","if","else","else if",
         "switch","case","do","break","continue","class","struct",
         "public","private","protected","this","Array","delete","try",
-        "catch","template","goto","return","len","throw","True","False"]
+        "catch","template","goto","return","len","throw","True","False","print","input","scan"]
     
     if token_value in keywords:
         return token_value
@@ -294,8 +315,8 @@ def parse_decleration(tokens):
         current_pos+=1
 
         value = None
-        if tokens[current_pos][0] == "T_ASSIGNOP":
-            consume(tokens[current_pos],"T_ASSIGNOP")
+        if tokens[current_pos][0] == "T_ASSIGNOP" or (tokens[current_pos][0] == "T_ARITHOP" and tokens[current_pos][1] == "="):
+            current_pos+=1  # consume the assignment operator
             value = parse_digits(tokens[current_pos])
             if value is None:
                 raise SyntaxError("Expected an expression after '='")
@@ -306,6 +327,7 @@ def parse_decleration(tokens):
 
 
         return {
+            "type": "declaration",
             "datatype": data_type,
             "identifier": name,
             "value": value
@@ -321,12 +343,27 @@ def parse_decleration(tokens):
 
         current_pos+=1
 
-        consume(tokens[current_pos],"T_ASSIGNOP")
-        expr=parse_statement(tokens)
-        consume(tokens[current_pos],"T_SEMICOLON")
+        # Accept both T_ASSIGNOP and T_ARITHOP(=)
+        if tokens[current_pos][0] == "T_ASSIGNOP" or (tokens[current_pos][0] == "T_ARITHOP" and tokens[current_pos][1] == "="):
+            current_pos+=1
+        else:
+            raise SyntaxError(f"Expected assignment operator, got {tokens[current_pos]}")
+        
+        # Try to parse the right-hand side expression
+        inner_start = current_pos
+        try:
+            # First try as operator expression (handles a+b, etc)
+            expr = parse_operator_expression(tokens)
+            # parse_operator_expression consumes semicolon, so we're done
+        except SyntaxError:
+            current_pos = inner_start
+            # If that fails, try as simple expression
+            expr = parse_expression(tokens)
+            consume(tokens[current_pos],"T_SEMICOLON")
         
 
         return {
+            "type": "declaration",
             "datatype": data_type,
             "identifier": name,
             "value": expr
@@ -357,7 +394,18 @@ def parse_operators(token):
       
 #operator precedence
 def build_ast_from_lists(literals, operators):
-    precedence = {'=': 1, '+': 2, '-': 2, '*': 3, '/': 3, '%': 3}
+    precedence = {
+        '=': 1, '+=': 1, '-=': 1, '*=': 1, '/=': 1,
+        '||': 2,
+        '&&': 3,
+        '==': 4, '!=': 4,
+        '<': 5, '<=': 5, '>': 5, '>=': 5,
+        '+': 6, '-': 6,
+        '*': 7, '/': 7, '%': 7,
+        '&': 8, '|': 8, '^': 8,
+        '<<': 9, '>>': 9,
+        '': 10  # Handle lexer bug where operators have empty value
+    }
 
     # convert literals to nodes
     stack_nodes = [literals[0]]
@@ -403,23 +451,37 @@ def parse_operator_expression(tokens):
     if current_pos>len(tokens)-1 or tokens[current_pos] is None:
         raise SyntaxError("Unexpected EOF")
         
-    # i=1;
+    # i=1; or ans = sum(a,b);
     try:
-        
+        print(f"DEBUG parse_operator_expression first try: pos={current_pos}")
         tok_iden=parse_identifier(tokens[current_pos])
         current_pos+=1
         operator=parse_operators(tokens[current_pos])
         current_pos+=1
         tok_value=None
-        if tokens[current_pos][0]=="T_NUMLIT" or tokens[current_pos][0]=="T_FLOATLIT":
-            tok_value=parse_digits(tokens[current_pos])
-        elif tokens[current_pos][1] == "True" or tokens[current_pos][1] == "False":
-            tok_value=parse_keyword(tokens[current_pos])
-        elif tokens[current_pos][0] == "T_IDENTIFIER":
-            tok_value=parse_identifier(tokens[current_pos])
-
-        current_pos+=1
-        consume(tokens[current_pos],"T_SEMICOLON")
+        print(f"DEBUG parse_operator_expression: After iden and op, pos={current_pos}, token={tokens[current_pos]}")
+        
+        # Check if the next token after identifier is a left paren (function call)
+        if tokens[current_pos][0] == "T_IDENTIFIER" and current_pos + 1 < len(tokens) and tokens[current_pos + 1][0] == "T_PARENL":
+            # This is a function call assignment like: ans = sum(a,b)
+            print(f"DEBUG: Detected function call at pos={current_pos}")
+            try:
+                tok_value = parse_function_call(tokens)
+                # parse_function_call already consumed the semicolon
+                print(f"DEBUG: Function call parsed successfully, now at pos={current_pos}")
+            except SyntaxError as e:
+                print(f"DEBUG: Function call parsing failed: {e}")
+                raise
+        else:
+            # Regular value parsing (not a function call)
+            if tokens[current_pos][0]=="T_NUMLIT" or tokens[current_pos][0]=="T_FLOATLIT":
+                tok_value=parse_digits(tokens[current_pos])
+            elif tokens[current_pos][1] == "True" or tokens[current_pos][1] == "False":
+                tok_value=parse_keyword(tokens[current_pos])
+            elif tokens[current_pos][0] == "T_IDENTIFIER":
+                tok_value=parse_identifier(tokens[current_pos])
+            current_pos+=1
+            consume(tokens[current_pos],"T_SEMICOLON")
 
         
         return {
@@ -713,6 +775,12 @@ def check_scans(tokens):
         current_pos=start_pos
 
     try:
+        node=parse_digits(tokens[current_pos])
+        return node
+    except SyntaxError:
+        current_pos=start_pos
+
+    try:
         node=parse_decleration(tokens)
         return node
     except SyntaxError:
@@ -738,7 +806,11 @@ def parse_function_call(tokens):
     if current_pos>len(tokens)-1 or tokens[current_pos] is None:
         raise SyntaxError("Unexpected EOF")
     
-    tok_kw=parse_identifier(tokens[current_pos])
+    # Accept both T_IDENTIFIER and T_KEYWORD for function names (like print)
+    if tokens[current_pos][0] == "T_KEYWORD":
+        tok_kw = parse_keyword(tokens[current_pos])
+    else:
+        tok_kw = parse_identifier(tokens[current_pos])
     current_pos+=1
     consume(tokens[current_pos],"T_PARENL")
 
@@ -754,6 +826,7 @@ def parse_function_call(tokens):
         consume(tokens[current_pos], "T_COMMA")
         node = check_scans(tokens)
         args.append(node)
+        current_pos+=1  # Move past the argument
 
     consume(tokens[current_pos], "T_PARENR")
     consume(tokens[current_pos], "T_SEMICOLON")
@@ -792,7 +865,25 @@ def parse_expression(tokens):
     except SyntaxError:
         current_pos=start_pos
 
-   
+    try:
+        node=parse_digits(tokens[current_pos])
+        current_pos+=1
+        return node
+    except SyntaxError:
+        current_pos=start_pos
+
+    try:
+        node=parse_identifier(tokens[current_pos])
+        current_pos+=1
+        return node
+    except SyntaxError:
+        current_pos=start_pos
+
+    try:
+        node=parse_function_call(tokens)
+        return node
+    except SyntaxError:
+        current_pos=start_pos
     
     raise SyntaxError(f"unexpected token {tokens[current_pos]}")
 
@@ -914,7 +1005,10 @@ def parse_jump_statement(tokens):
 
     #goto call
     try:
+        print(f"DEBUG parse_jump first try: At pos={current_pos}")
         kw=parse_keyword(tokens[current_pos])
+        if kw != "goto":  # Only accept goto for this pattern
+            raise SyntaxError(f"Expected goto, got {kw}")
         current_pos+=1
         tok_value=parse_identifier(tokens[current_pos])
         current_pos+=1
@@ -925,35 +1019,45 @@ def parse_jump_statement(tokens):
             "keyword":kw,
             "identifier":tok_value
         }
-    except SyntaxError:
+    except SyntaxError as e:
+        print(f"DEBUG parse_jump first try failed: {e}")
         current_pos=start_pos
 
     #parsing break, continue, return
     try:
+        print(f"DEBUG parse_jump second try: At pos={current_pos}")
         kw=parse_keyword(tokens[current_pos])
+        print(f"DEBUG parse_jump second try: Got keyword={kw}, advancing to pos={current_pos+1}")
         current_pos+=1
         consume(tokens[current_pos],"T_SEMICOLON")
+        print(f"DEBUG parse_jump second try: SUCCESS")
 
         return {
             "type":"jump statement",
             "keyword":kw,
         }
-    except SyntaxError:
+    except SyntaxError as e:
+        print(f"DEBUG parse_jump second try failed: {e}")
         current_pos=start_pos
 
     #return more than one expression
     try:
+        print(f"DEBUG parse_jump third try: At pos={current_pos}, token={tokens[current_pos]}")
         kw=parse_keyword(tokens[current_pos])
+        print(f"DEBUG parse_jump: Got keyword={kw}")
         current_pos+=1
+        print(f"DEBUG parse_jump: Parsing return with expression at pos={current_pos}")
         node=parse_expression(tokens)
-        
+        print(f"DEBUG parse_jump: After parse_expression, pos={current_pos}")
+        consume(tokens[current_pos],"T_SEMICOLON")
         
         return {
             "type":"jump statement",
             "keyword":kw,
             "args":node
         }
-    except SyntaxError:
+    except SyntaxError as e:
+        print(f"DEBUG parse_jump: Third try failed: {e}")
         current_pos=start_pos
 
     #return function calls
@@ -991,6 +1095,19 @@ def parse_statement(tokens):
     start_pos=current_pos
 
     try:
+        node=parse_decleration(tokens)
+        return node
+    except SyntaxError as e:
+        print(f"DEBUG parse_statement: parse_decleration failed: {e}")
+        current_pos=start_pos
+
+    try:
+        node=parse_function_call(tokens)
+        return node
+    except SyntaxError:
+        current_pos=start_pos
+
+    try:
         node=parse_conditional_statement(tokens)
         return node
     except SyntaxError:
@@ -1003,13 +1120,13 @@ def parse_statement(tokens):
         current_pos=start_pos
 
     try:
-        node=parse_expression(tokens)
+        node=parse_jump_statement(tokens)
         return node
     except SyntaxError:
         current_pos=start_pos
 
     try:
-        node=parse_jump_statement(tokens)
+        node=parse_expression(tokens)
         return node
     except SyntaxError:
         current_pos=start_pos
@@ -1035,13 +1152,22 @@ def parse_statements(tokens):
     global current_pos
     statements = []
 
+    print(f"DEBUG parse_statements: Starting at pos={current_pos}")
     while current_pos < len(tokens)-1:
+        # Stop if we hit a closing brace (end of block)
+        if tokens[current_pos][0] == "T_BRACER":
+            print(f"DEBUG parse_statements: Hit BRACER at pos={current_pos}, breaking")
+            break
+        print(f"DEBUG parse_statements: At pos={current_pos}, token={tokens[current_pos]}")
         try:
             stmt = parse_statement(tokens)  # <statement>
             statements.append(stmt)
-        except SyntaxError:
+            print(f"DEBUG parse_statements: Successfully parsed statement, now at pos={current_pos}")
+        except SyntaxError as e:
+            print(f"DEBUG parse_statements: Failed to parse statement: {e}")
             break
 
+    print(f"DEBUG parse_statements: Returning with {len(statements)} statements, current_pos={current_pos}")
     return {"type": "Statements", "block": statements}
 
 #check for struct or class
@@ -1252,10 +1378,18 @@ def parse_program(tokens):
         program.append(body)
 
     print_ast(program)
+    write_ast_to_file(program)
+    return program
 
 def print_ast(node):
     formatted = json.dumps(node, indent=3)
     print(formatted)
+
+def write_ast_to_file(node, filename="ast.txt"):
+    formatted = json.dumps(node, indent=3)
+    with open(filename, "w") as file:
+        file.write(formatted)
+    print(f"\nAST successfully written to {filename}")
 
 
 parse_program(tokens)

@@ -1,6 +1,15 @@
+def int sum(int a, int b)
+{
+    int res = a - b;
+    print(res);
+    return res;
+}
+
 def int main(){
-    print(125648);
-    if(z==b && f==c) {
-        print(n);
-    }
+    int a = 123;
+    int b = 20;
+    String name = "ebad";
+
+    ans = sum(a,namet);
+    print(ans);
 }

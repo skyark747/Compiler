@@ -27,11 +27,11 @@ bool isKeyword(string input)
 //return the name of Token as per class of operators
 string operatorName(string input) {
     
-    const string ar_op[] = {"+", "-", "", "/", "%","+=","-=","=","/=" };
+    const string ar_op[] = {"+", "-", "*", "/", "%","+=","-=","*=","/=" };
     const string as_op[] = {"="};
     const string rl_op[] = {"!", ">", "<","<=",">=","!=" };
     const string lg_op[] = { "&&", "||" };
-    const string bt_op[] = { "&", "|", "^", "", "<<", ">>","&=","|=","^=","=","<<=",">>=" };
+    const string bt_op[] = { "&", "|", "^", "~", "<<", ">>","&=","|=","^=","~=","<<=",">>=" };
 
     if(input=="==")
         return "T_EQUALSOP("+input+")";
@@ -209,7 +209,7 @@ void Tokenize(string str,vector<string>&Tokens) {
 
     const string invalid_op_combos[] = {
         // Arithmetic chaining
-        "/", "/", "/-", "+", "+/", "-", "-/", "%/", "%*",
+        "*/", "/*", "/-", "+*", "+/", "-*", "-/", "%/", "%*",
 
         // Relational mixed
         "<>", "><", "<!", ">!", "=<", "=>",

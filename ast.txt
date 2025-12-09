@@ -1,1 +1,97 @@
-[]
+[
+   {
+      "Function": "def",
+      "return type": "int",
+      "identifier": "sum",
+      "params": [
+         [
+            "Param",
+            "int",
+            "a"
+         ],
+         [
+            "Param",
+            "int",
+            "b"
+         ]
+      ],
+      "body": {
+         "type": "Statements",
+         "block": [
+            {
+               "type": "declaration",
+               "datatype": "int",
+               "identifier": "res",
+               "value": {
+                  "type": "OperatorExpression",
+                  "identifier": "a",
+                  "operator": "-",
+                  "value": "b"
+               }
+            },
+            {
+               "type": "FunctionCall",
+               "keyword": "print",
+               "args": [
+                  "res"
+               ]
+            },
+            {
+               "type": "jump statement",
+               "keyword": "return",
+               "args": "res"
+            }
+         ]
+      }
+   },
+   {
+      "Function": "def",
+      "return type": "int",
+      "identifier": "main",
+      "params": [],
+      "body": {
+         "type": "Statements",
+         "block": [
+            {
+               "type": "declaration",
+               "datatype": "int",
+               "identifier": "a",
+               "value": 123
+            },
+            {
+               "type": "declaration",
+               "datatype": "int",
+               "identifier": "b",
+               "value": 20
+            },
+            "String",
+            {
+               "type": "OperatorExpression",
+               "identifier": "name",
+               "operator": "=",
+               "value": null
+            },
+            {
+               "type": "OperatorExpression",
+               "identifier": "ans",
+               "operator": "=",
+               "value": {
+                  "type": "FunctionCall",
+                  "keyword": "sum",
+                  "args": [
+                     "a",
+                     "name"
+                  ]
+               }
+            },
+            {
+               "type": "FunctionCall",
+               "keyword": "print",
+               "args": [
+                  "ans"
+               ]
+            }
+         ]
+      }
+   }
+]
