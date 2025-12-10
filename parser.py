@@ -98,7 +98,8 @@ def parse_datatype(token=None,tokens=tokens):
         "T_FLOAT": "float",
         "T_DOUBLE": "double",
         "T_BOOL": "bool",
-        "T_AUTO": "auto"
+        "T_AUTO": "auto",
+        "T_STRING": "string"
     }
     if token_type in valid_types:
         token_value=valid_types.get(token_type)
@@ -214,6 +215,18 @@ def parse_digits(token=None):
     
     raise SyntaxError("expected a num literal")
 
+# parse string literals
+def parse_string_literal(token=None):
+    if token is None:
+        raise SyntaxError("Unexpected EOF")
+    
+    token_type, token_value = token
+    
+    if token_type == "T_STRINGLIT":
+        return token_value
+    
+    raise SyntaxError("expected a string literal")
+
 #parse letters
 def parse_letters(token=None):
     if token is None:
@@ -317,7 +330,12 @@ def parse_decleration(tokens):
         value = None
         if tokens[current_pos][0] == "T_ASSIGNOP" or (tokens[current_pos][0] == "T_ARITHOP" and tokens[current_pos][1] == "="):
             current_pos+=1  # consume the assignment operator
-            value = parse_digits(tokens[current_pos])
+            # Try parsing as digits first, then string literal
+            try:
+                value = parse_digits(tokens[current_pos])
+            except SyntaxError:
+                value = parse_string_literal(tokens[current_pos])
+            
             if value is None:
                 raise SyntaxError("Expected an expression after '='")
 

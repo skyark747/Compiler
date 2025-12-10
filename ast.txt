@@ -64,12 +64,11 @@
                "identifier": "b",
                "value": 20
             },
-            "String",
             {
-               "type": "OperatorExpression",
+               "type": "declaration",
+               "datatype": "string",
                "identifier": "name",
-               "operator": "=",
-               "value": null
+               "value": "\"ebad\""
             },
             {
                "type": "OperatorExpression",
@@ -80,7 +79,8 @@
                   "keyword": "sum",
                   "args": [
                      "a",
-                     "name"
+                     "name",
+                     "b"
                   ]
                }
             },

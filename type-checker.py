@@ -144,8 +144,12 @@ class TypeChecker:
                 right_type = self.infer_type(value)
             
             # Assignment operator
-            if operator == '=':
+            if operator == '=':                
                 if left_type is None:
+                    # Check if right side has valid type
+                    if right_type is None:
+                        self.add_error(f"Cannot assign to '{identifier}': right side has unknown type")
+                        return None
                     # Auto-declare variable
                     self.add_warning(f"Variable '{identifier}' used without declaration, auto-declaring as '{right_type}'")
                     self.declare_variable(identifier, right_type)
@@ -205,7 +209,13 @@ class TypeChecker:
         # Check argument types
         for i, (arg, (param_name, param_type)) in enumerate(zip(args, expected_params)):
             arg_type = self.infer_type(arg)
-            if arg_type and not self.check_type_compatibility(arg_type, param_type):
+            if arg_type is None:
+                # Variable not found in symbol table
+                if isinstance(arg, str) and not arg.startswith('"'):
+                    self.add_error(f"Argument {i+1} of function '{keyword}': variable '{arg}' not declared")
+                else:
+                    self.add_error(f"Argument {i+1} of function '{keyword}': could not determine type")
+            elif not self.check_type_compatibility(arg_type, param_type):
                 self.add_error(f"Argument {i+1} of function '{keyword}': expected '{param_type}', got '{arg_type}'")
         
         return func_info['return_type']
@@ -215,6 +225,10 @@ class TypeChecker:
         var_type = decl.get('datatype')
         var_name = decl.get('identifier')
         var_value = decl.get('value')
+        
+        # Normalize datatype to lowercase for consistency
+        if var_type:
+            var_type = var_type.lower()
         
         # Declare variable
         self.declare_variable(var_name, var_type)

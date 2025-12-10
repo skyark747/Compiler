@@ -8,8 +8,8 @@ def int sum(int a, int b)
 def int main(){
     int a = 123;
     int b = 20;
-    String name = "ebad";
+    string name = "ebad";
 
-    ans = sum(a,namet);
+    ans = sum(a,name,b);
     print(ans);
 }
